@@ -257,7 +257,7 @@ void load() {
     // window
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "effects");
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "shaderbox");
     SetTargetFPS(60);
 
     rlEnableDepthTest();

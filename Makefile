@@ -1,4 +1,4 @@
-APPNAME := effects
+APPNAME := shaderbox
 
 # Compiler and flags
 CXX := g++
