@@ -85,29 +85,73 @@ float snoise(vec3 v) {
     float n = 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1),
                     dot(p2, x2), dot(p3, x3))); // [-1 ... +1]
 
+    // n = 0.5 * (n + 1.0); // [0 ... +1]
+
     return n;
 }
 
-float snoise01(vec3 v) {
-    float n = snoise(v);
-    return 0.5 * (n + 1.0);
+// -----------------------------------------------------------------------
+vec3 get_axis_color(vec2 sp) {
+    float line_width = 0.02;
+    float line_smoothness = 0.01;
+    vec2 lines = 1.0 - smoothstep(0.0, line_smoothness, abs(sp) - line_width);
+
+    return vec3(lines, 0.0);
 }
 
-// -----------------------------------------------------------------------
-//
+vec3 get_grid_color(vec2 sp) {
+    vec2 uv_cell = fract(sp);
+    vec2 sp_cell = (uv_cell * 2.0) - 1.0;
+
+    float line_width = 0.01;
+    float line_smoothness = 0.005;
+
+    vec2 lines = 1.0 - smoothstep(0.0, line_smoothness, 1.0 - abs(sp_cell) - line_width);
+    float line = max(lines.x, lines.y);
+    vec3 color = 0.1 * vec3(1.0, 1.0, 1.0);
+
+    return line * color;
+}
+
+vec3 get_line_color(vec2 sp) {
+    float t = u_time;
+
+    float x = sp.x;
+
+    float noise_xt = snoise(vec3(x, t, 0.0));
+    float noise_xty = snoise(vec3(x, t, sp.y));
+
+    float signal = sin(x * PI) / (1.0 + pow(0.35 * abs(x), 16.0)) + 0.1 * noise_xt;
+
+    float signal_ratio = clamp(pow(abs(sp.x), 1.0), 0.0, 1.0);
+    float y = signal_ratio * signal + (1 - signal_ratio) * noise_xty;
+    float line_brightness = 0.1 * (15.0 - 10.0 * 2.0 * (noise_xty - 0.5));
+    vec3 line_attenuation = vec3(1.0, 160.0, 160.0);
+
+    vec3 signal_color = 1.0 * vec3(0.1, 1.0, 0.0);
+    vec3 noise_color = 10.0 * vec3(1.0, 0.3, 0.0);
+    vec3 color = signal_ratio * signal_color + (1 - signal_ratio) * noise_color;
+
+    float d = distance(sp, vec2(x, y));
+    float line = line_brightness / dot(line_attenuation, vec3(1.0, d, d * d));
+
+    return line * color;
+}
+
 void main() {
-    vec2 sp = (vs_uv * 2.0) - 1.0;
+    vec2 uv = vs_uv;
+
+    float zoomout = 2.0;
+    vec2 sp = (uv * 2.0) - 1.0;
+
+    sp *= zoomout;
     sp.x *= u_aspect;
 
-    float n0 = snoise01(4 * vec3(sp.x, sp.y, 0.0));
+    vec3 color = vec3(0.0);
 
+    // color += get_axis_color(sp);
+    color += get_grid_color(sp);
+    color += get_line_color(sp);
 
-    float n1 = snoise01(4 * vec3(sp.x * n0, sp.y, 0.0));
-    float n2 = snoise01(4 * vec3(sp.x, sp.y * n0, 0.0));
-    float n = 0.5 * n1 + 0.5 * n2;
-
-    float line = 1.0 - smoothstep(0.0, 0.025, n - 0.4);
-
-    vec3 color = vec3(line);
     fs_color = vec4(color, 1.0);
 }

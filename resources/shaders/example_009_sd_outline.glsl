@@ -5,8 +5,6 @@ uniform float u_aspect;
 
 out vec4 fs_color;
 
-#define PI 3.14159
-
 struct RayMarchResult {
     int i;
     vec3 p;
@@ -20,13 +18,14 @@ struct RayMarchResult {
 };
 
 float get_sd_shape(vec3 p) {
-    return length(p) - 1.0;
+    return length(p);
 }
+
+#define PI 3.14159
 
 #define RM_MAX_DIST 10000.0
 #define RM_MAX_N_STEPS 64
 #define RM_EPS 0.0001
-#define NORMAL_DERIVATIVE_STEP 0.015
 RayMarchResult march(vec3 ro, vec3 rd) {
     // ------------------------------------------
     // Signed distances
@@ -47,16 +46,16 @@ RayMarchResult march(vec3 ro, vec3 rd) {
 
         float sd_step_shape = get_sd_shape(rm.p);
 
-        rm.sd_last = sd_step_shape;
         rm.sd_min_shape = min(rm.sd_min_shape, sd_step_shape);
-        rm.sd_min = min(rm.sd_min, sd_step_shape);
+
+        rm.sd_last = RM_MAX_DIST;
+        rm.sd_last = min(rm.sd_last, sd_step_shape);
+
+        rm.sd_min = min(rm.sd_min, rm.sd_last);
 
         rm.dist += length(rm.p - rm.ro);
 
         if (rm.sd_last < RM_EPS || rm.dist > RM_MAX_DIST) {
-            if (rm.sd_last < RM_EPS) {
-                rm.n = vec3(1.0);
-            }
             break;
         }
     }
@@ -68,25 +67,14 @@ RayMarchResult march(vec3 ro, vec3 rd) {
         vec3 eps = vec3(h, 0.0, 0.0);
         rm.n = vec3(0.0);
 
-        if (rm.sd_last == rm.sd_min_shape) {
-            vec2 e = vec2(NORMAL_DERIVATIVE_STEP, 0.0);
-            rm.n = normalize(vec3(
-                        get_sd_shape(rm.p + e.xyy) - get_sd_shape(rm.p - e.xyy),
-                        get_sd_shape(rm.p + e.yxy) - get_sd_shape(rm.p - e.yxy),
-                        get_sd_shape(rm.p + e.yyx) - get_sd_shape(rm.p - e.yyx)
-                    ));
-        }
+        if (rm.sd_last == rm.sd_min_shape) {}
     }
 
     return rm;
 }
 
 float sin01(float x, float a, float f, float phase) {
-    return a * 0.5 * (sin(PI * f * (x + phase)) + 1.0);
-}
-
-float attenuate(float d, vec3 coeffs) {
-    return 1.0 / (coeffs.x + coeffs.y * d + coeffs.z * d * d);
+    return a * 0.5 * (sin(f * (x + phase)) + 1.0);
 }
 
 // -----------------------------------------------------------------------
@@ -96,10 +84,10 @@ void main() {
     screen_pos.x *= u_aspect; // Correct for aspect ratio
 
     // Camera setup
-    float fov = radians(70.0);
+    float fov = radians(100.0);
     float screen_dist = 1.0 / tan(0.5 * fov);
-    vec3 cam_pos = vec3(0.0, 0.0, 10.0);
-    vec3 look_at = vec3(0.0, 0.0, 0.0);
+    vec3 cam_pos = vec3(0.0, 2.0, 5.0);
+    vec3 look_at = vec3(0.0, 2.0, 0.0);
 
     // Calculate camera basis vectors
     vec3 forward = normalize(look_at - cam_pos);
@@ -121,14 +109,11 @@ void main() {
     RayMarchResult rm = march(ro, rd);
 
     // Color
-    vec3 color = vec3(0.0);
+    float d = abs(rm.sd_min_shape);
+    d = 1.0 - pow(abs(d - 2.0), 0.15);
+    d = pow(3 * d, 16);
 
-    float d = abs(max(0.0, rm.sd_min_shape));
-    float a = attenuate(d, vec3(0.01, 8.0, 8.0));
-    float c = a;
-
-    color = vec3(c);
+    vec3 color = vec3(d);
 
     fs_color = vec4(color, 1.0);
 }
-

@@ -44,6 +44,8 @@ struct Message {
 
 static Message MESSAGE = {"", WHITE, 0.0f};
 
+static float TIME = 0.0;
+
 // -----------------------------------------------------------------------
 // utils
 RayCollision isect_ray_plane(Ray ray, Vector3 plane_p, Vector3 plane_normal) {
@@ -148,6 +150,8 @@ void update_shader() {
     if (vs_current_time > PLANE_MESH_SHADER_INFO.vs_last_modified
         || fs_current_time > PLANE_MESH_SHADER_INFO.fs_last_modified) {
 
+        TIME = 0.0;
+
         // Add small delay to ensure file write is complete
         std::this_thread::sleep_for(std::chrono::milliseconds(150));
 
@@ -186,6 +190,8 @@ void update_input() {
         ASPECT = 16.0 / 9.0;
         reset_camera();
     }
+
+    TIME += GetFrameTime();
 }
 
 void update_camera() {
@@ -277,8 +283,6 @@ void draw_plane() {
     Material material = PLANE_MESH_MATERIAL;
     Shader shader = material.shader;
 
-    float time = GetTime();
-
     Ray mouse_ray = GetMouseRay(GetMousePosition(), CAMERA);
     RayCollision collision = isect_ray_plane(mouse_ray, {0.0, 0.0}, {0.0, 0.0, -1.0});
     Vector2 mouse_pos = {
@@ -290,7 +294,7 @@ void draw_plane() {
     int aspect_loc = GetShaderLocation(shader, "u_aspect");
     int mouse_pos_loc = GetShaderLocation(shader, "u_mouse_pos");
 
-    SetShaderValue(shader, time_loc, &time, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(shader, time_loc, &TIME, SHADER_UNIFORM_FLOAT);
     SetShaderValue(shader, aspect_loc, &ASPECT, SHADER_UNIFORM_FLOAT);
     SetShaderValue(shader, mouse_pos_loc, &mouse_pos, SHADER_UNIFORM_VEC2);
 
