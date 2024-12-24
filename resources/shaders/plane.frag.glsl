@@ -89,25 +89,50 @@ float snoise(vec3 v) {
 }
 
 float snoise01(vec3 v) {
-    float n = snoise(v);
-    return 0.5 * (n + 1.0);
+    return 0.5 * (snoise(v) + 1.0);
 }
 
 // -----------------------------------------------------------------------
-//
 void main() {
-    vec2 sp = (vs_uv * 2.0) - 1.0;
-    sp.x *= u_aspect;
+    vec2 uv_screen = vs_uv;
+    uv_screen.x *= u_aspect;
 
-    float n0 = snoise01(4 * vec3(sp.x, sp.y, 0.0));
+    vec2 uv_grid;
+    vec2 cell_idx;
+    {
+        float tiling = 50;
+        uv_grid = fract(uv_screen * tiling);
+        cell_idx = floor(uv_screen * tiling);
+    }
 
+    float cell_value;
+    {
+        float zoomout = 0.05;
+        float details = 0.7;
+        float n_steps = 6;
+        float t = 0.25 * u_time;
 
-    float n1 = snoise01(4 * vec3(sp.x * n0, sp.y, 0.0));
-    float n2 = snoise01(4 * vec3(sp.x, sp.y * n0, 0.0));
-    float n = 0.5 * n1 + 0.5 * n2;
+        vec2 xy = 0.3 * zoomout * cell_idx;
 
-    float line = 1.0 - smoothstep(0.0, 0.025, n - 0.4);
+        float n = 0.0;
+        float k = 0.0;
+        for (float i = 0.0; i < n_steps; ++i) {
+            float a = exp(-i * (1 - details));
+            float n_ = snoise01(pow(2, i) * vec3(xy, 0.1));
 
-    vec3 color = vec3(line);
+            k += a;
+            n += a * n_;
+        }
+
+        n /= k;
+
+        // TODO: different colors for different smoothstep ranges
+        // also, maybe perform probes along t axis and do smth with these derivatives...
+        n = 1.0 - smoothstep(0.15, 0.65, n);
+
+        cell_value = n;
+    }
+
+    vec3 color = vec3(cell_value);
     fs_color = vec4(color, 1.0);
 }
