@@ -5,7 +5,7 @@ uniform float u_aspect;
 
 out vec4 fs_color;
 
-#define PI 3.14159
+#define PI 3.141592
 
 struct RayMarchResult {
     int i;
@@ -20,7 +20,8 @@ struct RayMarchResult {
 };
 
 float get_sd_shape(vec3 p) {
-    return length(p) - 1.0;
+    float d = length(max(abs(p) - 1.0, 0.0)) - 0.2;
+    return d;
 }
 
 #define RM_MAX_DIST 10000.0
@@ -98,7 +99,7 @@ void main() {
     // Camera setup
     float fov = radians(70.0);
     float screen_dist = 1.0 / tan(0.5 * fov);
-    vec3 cam_pos = vec3(0.0, 0.0, 10.0);
+    vec3 cam_pos = vec3(5.0, 5.0, 5.0);
     vec3 look_at = vec3(0.0, 0.0, 0.0);
 
     // Calculate camera basis vectors
@@ -107,28 +108,34 @@ void main() {
     vec3 right = normalize(cross(forward, world_up));
     vec3 up = normalize(cross(right, forward));
 
-    // Calculate ray direction by creating a point on the virtual screen
-    // and getting direction from camera to that point
-    vec3 screen_center = cam_pos + forward * screen_dist;
-    vec3 screen_point = screen_center + // Screen position
-            right * screen_pos.x + // Offset horizontally
-            up * screen_pos.y; // Offset vertically
+    RayMarchResult rm;
+    {
+        // Perspective
+        vec3 screen_center = cam_pos + forward * screen_dist;
+        vec3 sp = screen_center +
+                right * screen_pos.x +
+                up * screen_pos.y;
 
-    vec3 ro = cam_pos;
-    vec3 rd = normalize(screen_point - cam_pos);
+        vec3 ro0 = cam_pos;
+        vec3 rd0 = normalize(sp - cam_pos);
 
-    // Ray March!
-    RayMarchResult rm = march(ro, rd);
+        // Orthographic
+        vec3 ro1 = sp * 4.0;
+        vec3 rd1 = normalize(look_at - cam_pos);
+
+        // Mix
+        vec3 ro = mix(ro0, ro1, 1.0);
+        vec3 rd = mix(rd0, rd1, 1.0);
+        rm = march(ro, rd);
+    }
 
     // Color
     vec3 color = vec3(0.0);
 
     float d = abs(max(0.0, rm.sd_min_shape));
     float a = attenuate(d, vec3(0.01, 8.0, 8.0));
-    float c = a;
 
-    color = vec3(c);
+    color = 1.0 * abs(rm.n);
 
     fs_color = vec4(color, 1.0);
 }
-
