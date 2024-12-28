@@ -98,21 +98,24 @@ void main() {
     sp.x -= 0.5;
     sp.x *= u_aspect;
 
+    float N0 = snoise(vec3(sp, u_time));
+
     mat3 freqs_mat = mat3(
             1.0, 1.0, 1.0,
-            2.0, 2.0, 4.0,
-            8.0, 8.0, 4.0
+            2.0, 2.0, 10.0,
+            8.0, 8.0, 30.0
         );
     float spread = pow(sp.y * 3, 4.0) / (1.0 + pow(2.0 * sp.y, 4.0)) - 1.0 * sp.y;
-    vec3 ampls = spread * vec3(1.5, 0.1, 0.2);
-    vec2 n_trunks = vec2(1.0 + floor(6.0 * pow(sp.y, 8.0)), 8.0);
-    vec2 trunks_dt = vec2(10.0, 10.0);
-    vec2 dither = vec2(100.0, 200.0);
+    vec3 ampls = spread * vec3(2.5, 1.0, 0.2);
+    vec2 n_trunks = vec2(6.0, 18.0) / 4.5;
+    vec2 dither = vec2(500.0, 500.0);
+
     float base_time = u_time * 0.025;
 
+    float trunks_dt = 10;
     vec2 trunk_idx = mod(floor(sp * dither), n_trunks);
-    float trunk_width = 0.01 * trunk_idx.y;
-    float trunk_smoothness = 0.025;
+    float trunk_width = 0.04 * trunk_idx.y + 0.02;
+    float trunk_smoothness = 0.035;
 
     float trunk_time = dot(trunk_idx * trunks_dt, vec2(1.0, 1.0));
     float time = base_time + trunk_time;
@@ -126,16 +129,13 @@ void main() {
     float x = abs(sp.x + dot(vec3(1.0 / 3.0), noise));
     float trunk = 1.0 - smoothstep(0.0, trunk_smoothness, x - trunk_width);
     float ground = 1.0 - trunk;
-    vec2 brightness = trunk_idx / n_trunks;
-    vec3 trunk_color = mix(vec3(0.6, 1.0, 0.2), vec3(0.5, 0.25, 0.1), 1.0 - sp.y);
-    trunk_color.g *= (1.0 + 2.0 * brightness.y + 2.0 * sp.y);
-    trunk_color.r *= (1.0 + 2.0 * brightness.y + 0.5 * (1.0 - sp.y));
+    float brightness = trunk_idx.y * 0.2;
+    vec3 trunk_color = mix(vec3(0.6, 1.0, 0.2), vec3(0.5, 0.35, 0.1), 1.0 - sp.y);
+    trunk_color.g *= (1.0 + 2.0 * brightness + 2.0 * sp.y);
+    trunk_color.r *= (1.0 + 2.0 * brightness + 0.5 * (1.0 - sp.y));
 
-    float c = float(mod(trunk_idx.y, 4.0) == 0);
+    float c = float(mod(trunk_idx.y, 6.0) == 0);
     trunk_color = trunk_color + c * vec3(0.5) - (1.0 - c) * vec3(0.5);
-
-    vec3 ground_color = 0.15 * pow(1.2 * sp.y, 2.0) * vec3(1.0, 1.0, 2.0);
-    ground_color += 0.05 * pow(1.2 * (1 - sp.y), 2.0) * vec3(2.0, 2.0, 1.0);
 
     vec3 color = trunk * trunk_color;
     fs_color = vec4(color, 1.0);
